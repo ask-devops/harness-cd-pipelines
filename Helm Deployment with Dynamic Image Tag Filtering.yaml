@@ -1,0 +1,90 @@
+pipeline:
+  name: "Helm Deployment with Dynamic Image Tag Filtering"
+  identifier: "helm_deployment_dynamic_tag_filtering"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Deploy to Kubernetes"
+        identifier: "deploy_k8s"
+        type: "Deployment"
+        spec:
+          execution:
+            steps:
+              # Step 1: Fetch Docker Image Tags from Artifactory
+              - step:
+                  name: "Fetch Docker Image Tags"
+                  identifier: "fetch_docker_tags"
+                  type: "ArtifactoryFetch"
+                  spec:
+                    connectorRef: "artifactory-connector"  # Artifactory connector reference
+                    repository: "docker-repo"  # Artifactory repository where Docker images are stored
+                    artifactPath: "your-image-name"  # Docker image name (without the tag)
+                    version: "*"  # Fetch all tags
+                    outputVariables:
+                      - name: "IMAGE_TAGS"
+                        value: "${ARTIFACTORY_TAGS}"  # Output all tags as a variable
+
+              # Step 2: Filter Docker Image Tag based on Dynamic Input Filters
+              - step:
+                  name: "Filter Docker Image Tag"
+                  identifier: "filter_image_tag"
+                  type: "Run"
+                  spec:
+                    type: "ShellScript"
+                    shell: "Bash"
+                    source:
+                      script: |
+                        # Fetch image tags
+                        IMAGE_TAGS="${IMAGE_TAGS}"  # This comes from the previous step output
+                        
+                        # Get the filter inputs from pipeline variables
+                        FILTER_START="${FILTER_START}"  # Dynamically provided by the user
+                        FILTER_END="${FILTER_END}"      # Dynamically provided by the user
+
+                        echo "Filtering image tags with start: $FILTER_START and end: $FILTER_END"
+
+                        # Loop through the tags and filter based on start or end criteria
+                        for TAG in $IMAGE_TAGS; do
+                          if [[ $TAG == $FILTER_START* ]] || [[ $TAG == *$FILTER_END ]]; then
+                            FILTERED_TAG=$TAG
+                            break
+                          fi
+                        done
+
+                        if [ -z "$FILTERED_TAG" ]; then
+                          echo "No tag found matching the filters."
+                          exit 1
+                        fi
+
+                        # Save the filtered tag as an output variable
+                        echo "FILTERED_TAG=$FILTERED_TAG" >> $HARNES_ENV_VARS_FILE
+
+              # Step 3: Checkout Helm Chart and Values from Bitbucket
+              - step:
+                  name: "Checkout Helm Chart"
+                  identifier: "checkout_helm_chart"
+                  type: "GitClone"
+                  spec:
+                    connectorRef: "bitbucket-connector"  # Bitbucket connector reference
+                    repository: "your-bitbucket-repo"    # Bitbucket repo URL
+                    branch: "main"  # Branch for Helm chart
+                    gitFetchType: "Branch"
+                    folderPath: "/helm-charts"  # Path to the Helm charts in Bitbucket repo
+
+              # Step 4: Deploy with Helm using the filtered Docker image tag
+              - step:
+                  name: "Deploy with Helm"
+                  identifier: "deploy_helm"
+                  type: "HelmDeploy"
+                  spec:
+                    chartName: "your-helm-chart"  # Helm chart name
+                    releaseName: "your-release"
+                    valuesFile: "/helm-charts/values.yaml"  # Values file for environment-specific configurations
+                    values:
+                      - image:
+                          name: "your-artifactory-repo/your-image"
+                          tag: "${FILTERED_TAG}"  # Use the filtered image tag
+                    namespace: "your-namespace"
+                    connectorRef: "helm-connector"  # Helm connector reference
+                    target: "helm"
