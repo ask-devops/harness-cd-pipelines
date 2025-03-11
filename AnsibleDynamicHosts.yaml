@@ -1,0 +1,30 @@
+pipeline:
+  name: "Ansible Dynamic Hosts"
+  identifier: "Ansible_Dynamic"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  variables:
+    - name: HOSTS_LIST
+      type: String
+      default: "192.168.1.100,192.168.1.101,192.168.1.102"
+  stages:
+    - stage:
+        name: "Run Ansible Playbook"
+        identifier: "Run_Ansible"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Loop Over Hosts"
+                  identifier: "Loop_Hosts"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      for host in $(echo "<+pipeline.variables.HOSTS_LIST>" | tr "," "\n")
+                      do
+                        echo "Running Ansible on $host"
+                        ansible-playbook -i $host, playbooks/site.yml \
+                        --private-key /harness/ssh_key --user ubuntu
+                      done
