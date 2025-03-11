@@ -1,0 +1,26 @@
+pipeline:
+  name: "Ansible Multi-Host Deployment"
+  identifier: "Ansible_Loop"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Deploy Ansible to Multiple Hosts"
+        identifier: "Deploy_Ansible"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Run Ansible on Each Host"
+                  identifier: "Run_Ansible"
+                  type: "ShellScript"
+                  strategy:
+                    matrix:
+                      host: ["192.168.1.100", "192.168.1.101", "192.168.1.102"]
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Running Ansible on ${host}"
+                      ansible-playbook -i ${host}, playbooks/site.yml \
+                      --private-key /harness/ssh_key --user ubuntu
