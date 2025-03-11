@@ -1,0 +1,67 @@
+pipeline:
+  name: "Copy Artifact with WinSCP"
+  identifier: "Copy_Artifact_WinSCP"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  variables:
+    - name: ARTIFACT_VERSION
+      type: String
+      description: "Select the Artifact Version"
+      default: "latest"
+    - name: REMOTE_SERVER
+      type: String
+      description: "Enter the Remote Server IP or Hostname"
+      default: "192.168.1.100"
+    - name: REMOTE_PATH
+      type: String
+      description: "Enter the Remote Path to Copy Artifact"
+      default: "/home/ubuntu/app"
+    - name: LOCAL_FILE_PATH
+      type: String
+      description: "Enter the Local Artifact File Path"
+      default: "/harness/your-artifact-file.tar.gz"
+
+  stages:
+    - stage:
+        name: "Deploy Artifact"
+        identifier: "Deploy_Artifact"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Fetch Artifact from Artifactory"
+                  identifier: "Fetch_Artifact"
+                  type: "ArtifactSource"
+                  spec:
+                    connectorRef: "artifactory_connector"
+                    artifactPath: "your-repo/artifact"
+                    artifactVersion: "<+pipeline.variables.ARTIFACT_VERSION>"
+                    repository: "your-repo-name"
+                    type: ArtifactoryRegistry
+
+              - step:
+                  name: "Prepare SSH Key"
+                  identifier: "Prepare_SSH"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "${SSH_PRIVATE_KEY}" > /harness/ssh_key
+                      chmod 600 /harness/ssh_key
+                    envVariables:
+                      SSH_PRIVATE_KEY: "<+secrets.getValue('SSH_PRIVATE_KEY')>"
+
+              - step:
+                  name: "Copy Artifact Using WinSCP"
+                  identifier: "Copy_Artifact_WinSCP"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Copying artifact using WinSCP..."
+                      winscp.com /command "
+                        open sftp://ubuntu@${REMOTE_SERVER}/ -privatekey=/harness/ssh_key
+                        put ${LOCAL_FILE_PATH} ${REMOTE_PATH}
+                        exit
+                      "
