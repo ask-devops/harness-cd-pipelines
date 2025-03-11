@@ -1,0 +1,66 @@
+pipeline:
+  name: "Ansible Deployment"
+  identifier: "Ansible_Deployment"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Run Ansible on Delegate"
+        identifier: "Run_Ansible"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Install Ansible"
+                  identifier: "Install_Ansible"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Updating package lists..."
+                      apt update
+
+                      echo "Installing Ansible..."
+                      apt install -y ansible
+
+                      echo "Verifying installation..."
+                      ansible --version
+
+              - step:
+                  name: "Checkout Ansible Playbooks"
+                  identifier: "Checkout_Git"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Cloning Ansible playbooks..."
+                      git clone https://github.com/your-org/ansible-repo.git /harness/ansible-repo
+                      ls -lah /harness/ansible-repo
+                    envVariables:
+                      GIT_SSL_NO_VERIFY: "true"  # If self-signed SSL certs are used
+
+              - step:
+                  name: "Prepare SSH Key"
+                  identifier: "Prepare_SSH"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Storing SSH key..."
+                      echo "${SSH_PRIVATE_KEY}" > /harness/ssh_key
+                      chmod 600 /harness/ssh_key
+                    envVariables:
+                      SSH_PRIVATE_KEY: "<+secrets.getValue('SSH_PRIVATE_KEY')>"
+
+              - step:
+                  name: "Run Ansible Playbook"
+                  identifier: "Run_Ansible_Playbook"
+                  type: "ShellScript"
+                  spec:
+                    shell: Sh
+                    script: |
+                      echo "Running Ansible Playbook..."
+                      cd /harness/ansible-repo
+                      ansible-playbook -i inventory/hosts.ini playbooks/site.yml \
+                      --private-key /harness/ssh_key --user ubuntu
