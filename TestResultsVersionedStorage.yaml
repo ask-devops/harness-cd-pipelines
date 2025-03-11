@@ -1,0 +1,73 @@
+pipeline:
+  name: "Test Results Versioned Storage"
+  identifier: "Test_Results_Storage"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Generate & Upload Test Results"
+        identifier: "Generate_Upload"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Generate Test Results"
+                  identifier: "Generate_Test_Results"
+                  type: "ShellScript"
+                  spec:
+                    shell: Bash
+                    script: |
+                      echo '{ "status": "SUCCESS" }' > test_results.json
+                      echo "Test results generated."
+
+              - step:
+                  name: "Upload to Artifactory"
+                  identifier: "Upload_Artifactory"
+                  type: "ArtifactoryUpload"
+                  spec:
+                    connectorRef: "artifactory_connector"
+                    repository: "generic-local"
+                    artifactPath: "test-results/test_results.json"
+                    sourcePath: "test_results.json"
+                    
+    - stage:
+        name: "Download & Use Test Results"
+        identifier: "Download_Use"
+        type: "CI"
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: "Download from Artifactory"
+                  identifier: "Download_Artifactory"
+                  type: "ArtifactoryDownload"
+                  spec:
+                    connectorRef: "artifactory_connector"
+                    repository: "generic-local"
+                    artifactPath: "test-results/test_results.json"
+                    version: "latest"
+
+              - step:
+                  name: "Check Test Results"
+                  identifier: "Check_Test_Results"
+                  type: "ShellScript"
+                  spec:
+                    shell: Bash
+                    script: |
+                      STATUS=$(jq -r '.status' test_results.json)
+                      echo "Test Status: $STATUS"
+                      if [[ "$STATUS" != "SUCCESS" ]]; then
+                        echo "Tests failed, stopping pipeline."
+                        exit 1
+                      else
+                        echo "Tests passed, proceeding..."
+                      fi
+
+              - step:
+                  name: "Trigger Second Pipeline"
+                  identifier: "Trigger_Second_Pipeline"
+                  type: "RunPipeline"
+                  spec:
+                    pipeline: "Second_Pipeline"
+                    executionCondition: "ON_SUCCESS"
