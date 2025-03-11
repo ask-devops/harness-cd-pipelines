@@ -1,0 +1,90 @@
+pipeline:
+  name: "Helm Deployment with Artifactory Chart and Bitbucket Values"
+  identifier: "helm_deployment_artifactory_chart_bitbucket_values"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Deploy to Kubernetes"
+        identifier: "deploy_k8s"
+        type: "Deployment"
+        spec:
+          execution:
+            steps:
+              # Step 1: Fetch Helm Chart from Artifactory
+              - step:
+                  name: "Fetch Helm Chart from Artifactory"
+                  identifier: "fetch_helm_chart_artifactory"
+                  type: "ArtifactoryFetch"
+                  spec:
+                    connectorRef: "artifactory-connector"  # Artifactory connector reference
+                    repository: "helm-charts-repo"  # Artifactory Helm charts repository
+                    artifactPath: "your-helm-chart"  # The name of the Helm chart in Artifactory
+                    version: "1.0.0"  # The specific version of the Helm chart
+                    outputVariables:
+                      - name: "HELM_CHART_PATH"
+                        value: "${ARTIFACTORY_ARTIFACT_PATH}"  # Save Helm chart path to variable
+
+              # Step 2: Checkout values.yaml from Bitbucket
+              - step:
+                  name: "Checkout values.yaml from Bitbucket"
+                  identifier: "checkout_values_yaml_bitbucket"
+                  type: "GitClone"
+                  spec:
+                    connectorRef: "bitbucket-connector"  # Bitbucket connector reference
+                    repository: "your-bitbucket-repo"    # Bitbucket repository URL
+                    branch: "main"  # Branch for values.yaml
+                    gitFetchType: "Branch"
+                    folderPath: "/helm-values"  # Folder path in Bitbucket for values.yaml
+
+              # Step 3: Filter Docker Image Tag (Optional, based on previous steps)
+              - step:
+                  name: "Filter Docker Image Tag"
+                  identifier: "filter_image_tag"
+                  type: "Run"
+                  spec:
+                    type: "ShellScript"
+                    shell: "Bash"
+                    source:
+                      script: |
+                        # Fetch image tags from previous steps or Artifactory
+                        IMAGE_TAGS="${IMAGE_TAGS}"  # This should come from previous step
+                        
+                        # Get the filter inputs from pipeline variables
+                        FILTER_START="${FILTER_START}"  # Dynamically provided by the user
+                        FILTER_END="${FILTER_END}"      # Dynamically provided by the user
+
+                        echo "Filtering image tags with start: $FILTER_START and end: $FILTER_END"
+
+                        # Loop through the tags and filter based on start or end criteria
+                        for TAG in $IMAGE_TAGS; do
+                          if [[ $TAG == $FILTER_START* ]] || [[ $TAG == *$FILTER_END ]]; then
+                            FILTERED_TAG=$TAG
+                            break
+                          fi
+                        done
+
+                        if [ -z "$FILTERED_TAG" ]; then
+                          echo "No tag found matching the filters."
+                          exit 1
+                        fi
+
+                        # Save the filtered tag as an output variable
+                        echo "FILTERED_TAG=$FILTERED_TAG" >> $HARNES_ENV_VARS_FILE
+
+              # Step 4: Deploy with Helm using the fetched Helm chart and values.yaml
+              - step:
+                  name: "Deploy with Helm"
+                  identifier: "deploy_helm"
+                  type: "HelmDeploy"
+                  spec:
+                    chartName: "${HELM_CHART_PATH}"  # Use the Helm chart path from Artifactory
+                    releaseName: "your-release-name"
+                    valuesFile: "/helm-values/values.yaml"  # Use values.yaml file from Bitbucket
+                    values:
+                      - image:
+                          name: "your-artifactory-repo/your-image"
+                          tag: "${FILTERED_TAG}"  # Use the filtered image tag (from optional previous step)
+                    namespace: "your-namespace"
+                    connectorRef: "helm-connector"  # Helm connector reference
+                    target: "helm"
