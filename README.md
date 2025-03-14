@@ -41,3 +41,9 @@ Create a custom delegate image with Ansible pre-installed:
    Modify the Kubernetes YAML (if using K8s) or Docker Run command to use your custom delegate image:<BR>
    docker run -e DELEGATE_TOKEN=<your_token> -e ACCOUNT_ID=<your_account> myrepo/my-custom-harness-delegate:latest<BR>
 
+# Simple JSON parsing using bash
+TEST_STATUS=$(cat results.json | grep -o '"testStatus": *"[^"]*"' | awk -F '": "' '{print $2}' | tr -d '"')
+
+echo "Test Status: $TEST_STATUS"
+
+
