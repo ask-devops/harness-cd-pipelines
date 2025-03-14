@@ -43,6 +43,7 @@ Create a custom delegate image with Ansible pre-installed:
 
 # Simple JSON parsing using bash
 TEST_STATUS=$(cat results.json | grep -o '"testStatus": *"[^"]*"' | awk -F '": "' '{print $2}' | tr -d '"')
+TEST_STATUS=$(grep -oP '"testStatus": *"\K[^"]*' results.json)
 
 echo "Test Status: $TEST_STATUS"
 
