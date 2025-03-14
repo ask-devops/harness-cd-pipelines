@@ -1,0 +1,98 @@
+pipeline:
+  name: "Custom Stage File Upload Pipeline"
+  identifier: "custom_stage_file_upload"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Run Tests & Upload Results"
+        identifier: "test_stage"
+        type: "Custom"
+        spec:
+          execution:
+            stepGroup:
+              name: "Test Execution"
+              identifier: "test_execution"
+              steps:
+                - step:
+                    name: "Run Tests"
+                    identifier: "run_tests"
+                    type: "Run"
+                    spec:
+                      shell: "Bash"
+                      source:
+                        script: |
+                          echo "Running tests..."
+                          sleep 3
+                          TEST_RESULT="PASS"  # Change to FAIL for testing
+                          echo "{ \"testStatus\": \"$TEST_RESULT\" }" > results.json
+
+                - step:
+                    name: "Upload Results to Harness File Store"
+                    identifier: "upload_results"
+                    type: "Run"
+                    spec:
+                      shell: "Bash"
+                      source:
+                        script: |
+                          echo "Uploading results.json to Harness File Store..."
+                          curl -X POST "https://app.harness.io/ng/api/file-store/upload?accountIdentifier=<YOUR_ACCOUNT_ID>&orgIdentifier=<YOUR_ORG_ID>&projectIdentifier=<YOUR_PROJECT_ID>" \
+                            -H "x-api-key: <+secrets.getValue('harness-api-key')>" \
+                            -H "Content-Type: multipart/form-data" \
+                            -F "file=@results.json"
+
+    - stage:
+        name: "Read Results & Deploy If Tests Pass"
+        identifier: "deploy_stage"
+        type: "Custom"
+        when:
+          condition: "<+pipeline.stages.test_stage.status> == 'Success'"
+        spec:
+          execution:
+            stepGroup:
+              name: "Check Results & Deploy"
+              identifier: "check_and_deploy"
+              steps:
+                - step:
+                    name: "Download & Read Test Results"
+                    identifier: "read_results"
+                    type: "Run"
+                    spec:
+                      shell: "Bash"
+                      source:
+                        script: |
+                          echo "Downloading results.json from Harness File Store..."
+                          curl -X GET "https://app.harness.io/ng/api/file-store/download?accountIdentifier=<YOUR_ACCOUNT_ID>&orgIdentifier=<YOUR_ORG_ID>&projectIdentifier=<YOUR_PROJECT_ID>&filePath=test-results/results.json" \
+                            -H "x-api-key: <+secrets.getValue('harness-api-key')>" -o results.json
+
+                          TEST_STATUS=$(jq -r '.testStatus' results.json)
+                          echo "Test Status: $TEST_STATUS"
+
+                          echo "TEST_STATUS=$TEST_STATUS" >> $HARNES_ENV_VARS_FILE
+
+                - step:
+                    name: "Deploy Application"
+                    identifier: "deploy_app"
+                    type: "Run"
+                    when:
+                      condition: "<+execution.steps.read_results.output.outputVariables.TEST_STATUS> == 'PASS'"
+                    spec:
+                      shell: "Bash"
+                      source:
+                        script: |
+                          echo "Deploying application..."
+                          sleep 3
+                          echo "Deployment successful!"
+
+                - step:
+                    name: "Exit Pipeline"
+                    identifier: "exit_pipeline"
+                    type: "Run"
+                    when:
+                      condition: "<+execution.steps.read_results.output.outputVariables.TEST_STATUS> == 'FAIL'"
+                    spec:
+                      shell: "Bash"
+                      source:
+                        script: |
+                          echo "Tests failed. Stopping pipeline."
+                          exit 1
