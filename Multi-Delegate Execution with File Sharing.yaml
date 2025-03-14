@@ -1,0 +1,85 @@
+pipeline:
+  name: "Multi-Delegate Execution with File Sharing"
+  identifier: "multi_delegate_pipeline"
+  projectIdentifier: "Your_Project"
+  orgIdentifier: "Your_Org"
+  stages:
+    - stage:
+        name: "Test and Deploy"
+        identifier: "test_and_deploy"
+        type: "Deployment"
+        spec:
+          execution:
+            steps:
+              # Step 1: Run Tests on Delegate 1 and Upload results.json to Harness File Store
+              - step:
+                  name: "Run Tests"
+                  identifier: "run_tests"
+                  type: "Run"
+                  spec:
+                    shell: "Bash"
+                    source:
+                      script: |
+                        echo "Running tests on Delegate 1..."
+                        sleep 3
+                        TEST_RESULT="PASS"  # Change to FAIL for failure scenario
+                        echo "{ \"testStatus\": \"$TEST_RESULT\" }" > results.json
+
+                        echo "Uploading results.json to Harness File Store..."
+                        harness file-upload --file results.json --path test-results/results.json
+                    delegateSelectors:
+                      - "delegate-group-1"
+
+              # Step 2: Download results.json on Delegate 2 and Process it
+              - step:
+                  name: "Download and Read Test Results"
+                  identifier: "read_results"
+                  type: "Run"
+                  spec:
+                    shell: "Bash"
+                    source:
+                      script: |
+                        echo "Downloading results.json from Harness File Store..."
+                        harness file-download --path test-results/results.json --file results.json
+
+                        # Read test result
+                        TEST_STATUS=$(jq -r '.testStatus' results.json)
+                        echo "Test Status: $TEST_STATUS"
+
+                        # Save status as an output variable
+                        echo "TEST_STATUS=$TEST_STATUS" >> $HARNES_ENV_VARS_FILE
+                    delegateSelectors:
+                      - "delegate-group-2"
+
+              # Step 3: Deploy if Tests Pass
+              - step:
+                  name: "Deploy Application"
+                  identifier: "deploy_app"
+                  type: "Run"
+                  spec:
+                    shell: "Bash"
+                    source:
+                      script: |
+                        echo "Deploying application on Delegate 2..."
+                        sleep 3
+                        echo "Deployment successful!"
+                    delegateSelectors:
+                      - "delegate-group-2"
+                  when:
+                    condition: "<+execution.steps.read_results.output.outputVariables.TEST_STATUS> == 'PASS'"
+
+              # Step 4: Exit if Tests Fail
+              - step:
+                  name: "Exit Pipeline"
+                  identifier: "exit_pipeline"
+                  type: "Run"
+                  spec:
+                    shell: "Bash"
+                    source:
+                      script: |
+                        echo "Tests failed. Stopping pipeline."
+                        exit 1
+                    delegateSelectors:
+                      - "delegate-group-2"
+                  when:
+                    condition: "<+execution.steps.read_results.output.outputVariables.TEST_STATUS> == 'FAIL'"
