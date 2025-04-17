@@ -1,0 +1,45 @@
+pipeline:
+  name: FileContentPipeline
+  identifier: FileContentPipeline
+  projectIdentifier: YourProject
+  orgIdentifier: YourOrg
+  tags: {}
+  stages:
+    - stage:
+        name: ReadAndUseFile
+        identifier: ReadAndUseFile
+        type: Deployment
+        spec:
+          deploymentType: CustomDeployment
+          customDeploymentRef:
+            templateRef: YourCustomDeployment
+            versionLabel: "1"
+          infrastructure:
+            infrastructureDefinition:
+              type: KubernetesDirect  # or any other type you're using
+              spec:
+                connectorRef: YourK8sConnector
+                namespace: default
+                releaseName: release-${infra.kubernetes.namespace}
+          execution:
+            steps:
+              - step:
+                  name: Read File Content
+                  identifier: ReadFileStep
+                  type: Command
+                  spec:
+                    shell: PowerShell
+                    command: |
+                      $fileContent = Get-Content -Path "C:\data\config.txt" -Raw
+                      Write-Output "MY_FILE_CONTENT=$fileContent"
+                    outputVariables:
+                      - name: MY_FILE_CONTENT
+              - step:
+                  name: Use File Content
+                  identifier: UseFileContent
+                  type: Command
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "Content from the file was:"
+                      echo "<+execution.steps.ReadFileStep.output.outputVariables.MY_FILE_CONTENT>"
