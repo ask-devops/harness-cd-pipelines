@@ -30,8 +30,13 @@ pipeline:
                   spec:
                     shell: PowerShell
                     command: |
-                      $fileContent = Get-Content -Path "C:\data\config.txt" -Raw
-                      Write-Output "MY_FILE_CONTENT=$fileContent"
+                      $env.fileContent = Get-Content -Path "C:\data\config.txt" -Raw
+                      
+                      Write-Output "MY_FILE_CONTENT=$env.fileContent" 
+                    
+                      
+
+                      
                     outputVariables:
                       - name: MY_FILE_CONTENT
               - step:
