@@ -1,0 +1,65 @@
+pipeline:
+  name: EnvAndFilePipeline
+  identifier: EnvAndFilePipeline
+  projectIdentifier: YourProject
+  orgIdentifier: YourOrg
+  tags: {}
+  stages:
+    - stage:
+        name: ReadAndUseEnvAndFile
+        identifier: ReadAndUseEnvAndFile
+        type: Deployment
+        spec:
+          deploymentType: CustomDeployment
+          customDeploymentRef:
+            templateRef: YourCustomDeployment
+            versionLabel: "1"
+          infrastructure:
+            infrastructureDefinition:
+              type: KubernetesDirect  # Or any infra type you're using
+              spec:
+                connectorRef: YourK8sConnector
+                namespace: default
+                releaseName: release-${infra.kubernetes.namespace}
+          execution:
+            steps:
+              - step:
+                  name: Read Env and File
+                  identifier: ReadEnvFile
+                  type: Command
+                  spec:
+                    shell: PowerShell
+                    command: |
+                      # Read environment variable
+                      $envValue = $env:MY_ENV_VAR
+                      if (-not $envValue) {
+                        $envValue = "DEFAULT_ENV"
+                      }
+
+                      # Read file content
+                      $filePath = "C:\data\config.txt"
+                      if (Test-Path $filePath) {
+                        $fileContent = Get-Content -Path $filePath -Raw
+                      } else {
+                        $fileContent = "NO_FILE_FOUND"
+                      }
+
+                      # Export as Harness output variables (must use $env:)
+                      $env:ENV_OUTPUT = $envValue
+                      $env:FILE_OUTPUT = $fileContent
+                    outputVariables:
+                      - name: ENV_OUTPUT
+                      - name: FILE_OUTPUT
+
+              - step:
+                  name: Use Output Variables
+                  identifier: UseOutputs
+                  type: Command
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "=== ENV VAR FROM PREVIOUS STEP ==="
+                      echo "<+execution.steps.ReadEnvFile.output.outputVariables.ENV_OUTPUT>"
+
+                      echo "=== FILE CONTENT FROM PREVIOUS STEP ==="
+                      echo "<+execution.steps.ReadEnvFile.output.outputVariables.FILE_OUTPUT>"
