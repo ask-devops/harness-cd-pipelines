@@ -1,0 +1,43 @@
+pipeline:
+  name: PowerShellLoopScript
+  identifier: PowerShellLoopScript
+  projectIdentifier: YourProject
+  orgIdentifier: YourOrg
+  stages:
+    - stage:
+        name: LoopScriptStage
+        identifier: LoopScriptStage
+        type: Deployment
+        spec:
+          deploymentType: CustomDeployment
+          customDeploymentRef:
+            templateRef: YourCustomDeployment
+            versionLabel: "1"
+          infrastructure:
+            infrastructureDefinition:
+              type: KubernetesDirect
+              spec:
+                connectorRef: YourK8sConnector
+                namespace: default
+                releaseName: release-${infra.kubernetes.namespace}
+          execution:
+            steps:
+              - step:
+                  name: Run Loop PowerShell
+                  identifier: LoopPowerShell
+                  type: Command
+                  spec:
+                    shell: PowerShell
+                    command: |
+                      $servers = @("server1.domain.local", "server2.domain.local", "server3.domain.local")
+                      $username = "<+secrets.getValue("win_user")>"
+                      $password = ConvertTo-SecureString "<+secrets.getValue("win_pass")>" -AsPlainText -Force
+                      $creds = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+                      foreach ($server in $servers) {
+                          Write-Host "`nRunning script on $server..."
+                          Invoke-Command -ComputerName $server -Credential $creds -ScriptBlock {
+                              Get-Date
+                              Get-Service | Where-Object {$_.Status -eq "Running"} | Select-Object -First 5
+                          }
+                      }
