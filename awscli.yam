@@ -1,0 +1,32 @@
+pipeline:
+  name: Install AWS CLI via Tar
+  identifier: Install_AWS_CLI_via_Tar
+  projectIdentifier: MyProject
+  orgIdentifier: MyOrg
+  stages:
+    - stage:
+        name: Install AWS CLI
+        identifier: Install_AWS_CLI
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Download and Install AWS CLI
+                  identifier: install_aws_cli
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors: []  # Add your delegate tag here if needed
+                    command: |
+                      echo "Downloading AWS CLI tarball..."
+
+                      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.tar.gz" -o "awscliv2.tar.gz"
+                      tar -xzf awscliv2.tar.gz
+
+                      echo "Installing AWS CLI..."
+                      sudo ./aws/install
+
+                      echo "Validating installation..."
+                      aws --version
