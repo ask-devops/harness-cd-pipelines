@@ -1,0 +1,130 @@
+pipeline:
+  name: Create_Deploy_Destroy_AKS
+  identifier: Create_Deploy_Destroy_AKS
+  projectIdentifier: YOUR_PROJECT
+  orgIdentifier: YOUR_ORG
+  stages:
+
+    # ────────── Stage 1: Provision AKS ──────────
+    - stage:
+        name: Provision AKS
+        identifier: Provision_AKS
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Terraform Init + Apply
+                  identifier: Terraform_Init_Apply
+                  type: TerraformApply
+                  spec:
+                    configuration:
+                      command: Apply
+                      configFiles:
+                        store:
+                          type: Git
+                          spec:
+                            connectorRef: YOUR_GIT_CONNECTOR
+                            repoName: YOUR_TF_REPO
+                            branch: main
+                            folderPath: terraform/aks
+                      secretManagerRef: harnessSecretManager
+                      backendConfig:
+                        type: Inline
+                        spec:
+                          content: |
+                            bucket = "tfstate-bucket"
+                            key    = "aks/terraform.tfstate"
+                            region = "us-east-1"
+                      varFiles:
+                        - varFile:
+                            type: Inline
+                            spec:
+                              content: |
+                                cluster_name = "harness-aks"
+                                location     = "East US"
+                                node_count   = 1
+                  timeout: 15m
+
+    # ────────── Stage 2: Deploy via Helm ──────────
+    - stage:
+        name: Deploy App
+        identifier: Deploy_App
+        type: Deploy
+        spec:
+          service:
+            serviceRef: my_helm_service
+          environment:
+            environmentRef: dev
+            infrastructureDefinitions:
+              - identifier: aks_infra
+          deploymentType: Kubernetes
+          execution:
+            steps:
+              - step:
+                  type: HelmDeploy
+                  name: Helm Deploy
+                  identifier: Helm_Deploy
+                  spec:
+                    chart:
+                      store:
+                        type: Git
+                        spec:
+                          connectorRef: YOUR_GIT_CONNECTOR
+                          repoName: helm-charts
+                          branch: main
+                          folderPath: myapp
+                    valuesFiles:
+                      - store:
+                          type: Git
+                          spec:
+                            connectorRef: YOUR_GIT_CONNECTOR
+                            repoName: helm-charts
+                            branch: main
+                            paths:
+                              - myapp/values.yaml
+                    releaseName: myapp-release
+                    namespace: default
+              - step:
+                  type: K8sRolloutStatus
+                  name: Check Rollout
+                  identifier: Check_Rollout
+
+    # ────────── Stage 3: Destroy AKS ──────────
+    - stage:
+        name: Destroy AKS
+        identifier: Destroy_AKS
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Terraform Destroy
+                  identifier: Terraform_Destroy
+                  type: TerraformDestroy
+                  spec:
+                    configuration:
+                      configFiles:
+                        store:
+                          type: Git
+                          spec:
+                            connectorRef: YOUR_GIT_CONNECTOR
+                            repoName: YOUR_TF_REPO
+                            branch: main
+                            folderPath: terraform/aks
+                      backendConfig:
+                        type: Inline
+                        spec:
+                          content: |
+                            bucket = "tfstate-bucket"
+                            key    = "aks/terraform.tfstate"
+                            region = "us-east-1"
+                      varFiles:
+                        - varFile:
+                            type: Inline
+                            spec:
+                              content: |
+                                cluster_name = "harness-aks"
+                                location     = "East US"
+                                node_count   = 1
+                  timeout: 15m
