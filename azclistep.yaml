@@ -1,20 +1,29 @@
-stage:
-  name: Install Azure CLI
-  identifier: Install_AZ_CLI
-  type: Custom
-  spec:
-    execution:
-      steps:
-        - step:
-            type: ShellScript
-            name: Install az CLI
-            identifier: Install_az_cli
-            spec:
-              shell: Bash
-              command: |
-                # Install Azure CLI (Ubuntu/Debian)
-                echo "Installing Azure CLI..."
-                curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+pipeline:
+  name: Install AZ CLI via Curl
+  identifier: Install_AZ_CLI_via_Curl
+  projectIdentifier: MyProject
+  orgIdentifier: MyOrg
+  stages:
+    - stage:
+        name: Install AZ CLI
+        identifier: Install_AZ_CLI
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Download and Install Azure CLI
+                  identifier: install_az_cli
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    delegateSelectors: []  # Optional: add tag if using a specific delegate
+                    command: |
+                      echo "Installing Azure CLI using Microsoft install script..."
 
-                # Verify installation
-                az version
+                      # Download and run the install script
+                      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+                      echo "Checking az version:"
+                      az version
