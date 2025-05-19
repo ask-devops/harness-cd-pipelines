@@ -39,3 +39,27 @@ RUN apk --no-cache add ca-certificates && \
         bash
 
 CMD ["sh"]
+---
+FROM alpine:latest
+
+# Set to root user
+USER root
+
+# Replace default repo with HTTP mirror + install certs first
+RUN sed -i 's|https://dl-cdn.alpinelinux.org|http://dl-2.alpinelinux.org|' /etc/apk/repositories && \
+    apk add --no-cache ca-certificates && \
+    apk add --no-cache \
+        iproute2 \
+        iputils \
+        bind-tools \
+        net-tools \
+        curl \
+        wget \
+        traceroute \
+        busybox-extras \
+        tcpdump \
+        nmap \
+        socat \
+        bash
+
+CMD ["sh"]
