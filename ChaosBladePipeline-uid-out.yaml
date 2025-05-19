@@ -1,0 +1,66 @@
+pipeline:
+  name: ChaosBladePipeline
+  identifier: ChaosBladePipeline
+  projectIdentifier: your_project
+  orgIdentifier: your_org
+  tags: {}
+  stages:
+    - stage:
+        name: Deploy
+        identifier: Deploy
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: your_service
+          environment:
+            environmentRef: your_env
+            infrastructureDefinitions:
+              - identifier: your_infra
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Run ChaosBlade
+                  identifier: Run_ChaosBlade
+                  spec:
+                    shell: Bash
+                    script: |
+                      # Run ChaosBlade command
+                      OUTPUT=$(blade create cpu load --cpu-percent 80 --timeout 60)
+
+                      echo "ChaosBlade Output:"
+                      echo "$OUTPUT"
+
+                      # Extract JSON part
+                      JSON_LINE=$(echo "$OUTPUT" | grep -o '{.*}')
+                      echo "Extracted JSON: $JSON_LINE"
+
+                      # Use jq if available, fallback to sed
+                      if command -v jq >/dev/null 2>&1; then
+                        echo "Using jq"
+                        UID=$(echo "$JSON_LINE" | jq -r '.result')
+                      else
+                        echo "Using sed fallback"
+                        UID=$(echo "$JSON_LINE" | sed -n 's/.*"result"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+                      fi
+
+                      echo "Extracted UID: $UID"
+
+                      # Export for Harness
+                      echo "export CHAOS_UID=$UID"
+                      export CHAOS_UID=$UID
+                    outputVariables:
+                      - name: CHAOS_UID
+
+              - step:
+                  type: ShellScript
+                  name: Use Chaos UID
+                  identifier: Use_Chaos_UID
+                  spec:
+                    shell: Bash
+                    environmentVariables:
+                      - name: CHAOS_UID
+                        value: <+pipeline.stages.Deploy.spec.execution.steps.Run_ChaosBlade.output.outputVariables.CHAOS_UID>
+                    script: |
+                      echo "Using CHAOS_UID from env: $CHAOS_UID"
