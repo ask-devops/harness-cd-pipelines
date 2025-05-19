@@ -15,3 +15,27 @@ RUN apk update && apk add --no-cache \
     bash
 
 CMD ["sh"]
+---
+FROM alpine:latest
+
+# Use root and replace the default repo with an alternate mirror
+USER root
+
+# Fix SSL, repo permissions, and ensure apk runs with no cache
+RUN apk --no-cache add ca-certificates && \
+    sed -i 's|https://dl-cdn.alpinelinux.org|http://mirror.sfo12.us.leaseweb.net|' /etc/apk/repositories && \
+    apk --no-cache add \
+        iproute2 \
+        iputils \
+        bind-tools \
+        net-tools \
+        curl \
+        wget \
+        traceroute \
+        busybox-extras \
+        tcpdump \
+        nmap \
+        socat \
+        bash
+
+CMD ["sh"]
