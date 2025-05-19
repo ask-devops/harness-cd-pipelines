@@ -63,3 +63,22 @@ RUN sed -i 's|https://dl-cdn.alpinelinux.org|http://dl-2.alpinelinux.org|' /etc/
         bash
 
 CMD ["sh"]
+---
+FROM debian:bullseye-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    iproute2 \
+    iputils-ping \
+    dnsutils \
+    net-tools \
+    curl \
+    wget \
+    traceroute \
+    telnet \
+    netcat \
+    tcpdump \
+    nmap \
+    socat \
+    && rm -rf /var/lib/apt/lists/*
+
+CMD ["bash"]
