@@ -1,0 +1,17 @@
+FROM alpine:latest
+
+RUN apk update && apk add --no-cache \
+    iproute2 \
+    iputils \
+    bind-tools \
+    net-tools \
+    curl \
+    wget \
+    traceroute \
+    busybox-extras \
+    tcpdump \
+    nmap \
+    socat \
+    bash
+
+CMD ["sh"]
