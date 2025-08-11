@@ -1,0 +1,15 @@
+- step:
+    type: Email
+    name: Notify Artifact URL
+    spec:
+      to: 
+        - "team@example.com"
+      subject: "Artifact deployed: <+artifact.displayName>"
+      body: |
+        Hello Team,
+
+        The pipeline <+pipeline.name> deployed the artifact:
+
+        URL: https://repo.example.com/artifacts/<+artifact.image>/<+artifact.tag>
+
+        Status: <+status>
