@@ -34,3 +34,7 @@ template:
         URL: https://repo.example.com/artifacts/<+artifact.image>/<+artifact.tag>
 
         Status: <+status>
+---
+- step:
+    template:
+      templateRef: notify_artifact_url
