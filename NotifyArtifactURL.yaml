@@ -13,3 +13,24 @@
         URL: https://repo.example.com/artifacts/<+artifact.image>/<+artifact.tag>
 
         Status: <+status>
+---
+template:
+  name: Notify Artifact URL Template
+  identifier: notify_artifact_url
+  type: Step
+  projectIdentifier: my_project
+  orgIdentifier: default
+  spec:
+    type: Email
+    spec:
+      to:
+        - "team@example.com"
+      subject: "Artifact deployed: <+artifact.displayName>"
+      body: |
+        Hello Team,
+
+        The pipeline <+pipeline.name> deployed the artifact:
+
+        URL: https://repo.example.com/artifacts/<+artifact.image>/<+artifact.tag>
+
+        Status: <+status>
