@@ -1,0 +1,31 @@
+pipeline:
+  name: DynamicKeyValuePipeline
+  identifier: dynamic_kv_pipeline
+  variables:
+    - name: pairs
+      type: String
+      value: <+input>  # Will receive dynamic key:value pairs
+  stages:
+    - stage:
+        name: Append Key-Value Stage
+        identifier: append_kv_stage
+        type: Deployment
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Append Key-Value
+                  identifier: append_kv_step
+                  type: ShellScript
+                  spec:
+                    connectorRef: my-ssh-connector
+                    onDelegate: true
+                    workingDirectory: "/"
+                    script: |
+                      # If comma-separated string
+                      IFS=',' read -ra PAIRS <<< "<+pipeline.variables.pairs>"
+                      for pair in "${PAIRS[@]}"; do
+                        key="${pair%%:*}"
+                        # Avoid duplicates
+                        grep -q "^$key:" /path/to/myfile.txt || echo "$pair" >> /path/to/myfile.txt
+                      done
