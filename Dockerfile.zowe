@@ -1,0 +1,23 @@
+# 🧱 Base image: Official Harness Delegate
+FROM harness/delegate:latest
+
+# 🏷️ Maintainer (optional)
+LABEL maintainer="yourname@company.com"
+LABEL description="Harness Delegate with Zowe CLI + Endevor Plugin"
+
+# 👇 Install prerequisites and Node.js (required for Zowe CLI)
+USER root
+RUN apt-get update && apt-get install -y curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g @zowe/cli @zowe/endevor-for-zowe-cli && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 🧪 Verify installation (optional)
+RUN zowe --version && node --version && npm --version
+
+# 🔒 (Optional) Create Zowe home & profiles folder
+RUN mkdir -p /root/.zowe/profiles && chmod -R 700 /root/.zowe
+
+# ⚙️ Expose delegate startup script
+ENTRYPOINT ["/opt/harness/delegate/start.sh"]
