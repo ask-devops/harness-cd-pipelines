@@ -1,0 +1,61 @@
+pipeline:
+  name: Endevor_CI_CD
+  identifier: endevor_ci_cd
+  projectIdentifier: mainframe_proj
+  orgIdentifier: mainframe_org
+  stages:
+    - stage:
+        name: Build
+        identifier: Build
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Generate COBOL
+                  identifier: Generate
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "🔧 Generating element in Endevor..."
+                      zowe endevor generate element PAYROLL01 \
+                        --environment DEV \
+                        --system PAYROLL \
+                        --subsystem COBOL \
+                        --comment "Harness build initiated"
+    - stage:
+        name: Promote
+        identifier: Promote
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Move to TEST
+                  identifier: Move
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "🚀 Promoting element to TEST..."
+                      zowe endevor move element PAYROLL01 \
+                        --environment TEST \
+                        --system PAYROLL \
+                        --subsystem COBOL
+    - stage:
+        name: Deploy
+        identifier: Deploy
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Submit JCL
+                  identifier: JCL
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "📦 Submitting deploy job..."
+                      zowe zos-jobs submit ds "ZUSER.JCL(DEPLOY01)" --wait
