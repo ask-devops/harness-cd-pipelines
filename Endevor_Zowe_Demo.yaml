@@ -1,0 +1,85 @@
+pipeline:
+  name: Endevor_Zowe_Demo
+  identifier: endevor_zowe_demo
+  projectIdentifier: mainframe_proj
+  orgIdentifier: mainframe_org
+
+  stages:
+    - stage:
+        name: Build_And_Promote
+        identifier: Build_And_Promote
+        type: Custom
+        spec:
+          execution:
+            steps:
+              # STEP 1: Install Node.js + Zowe CLI + Endevor plug-in
+              - step:
+                  name: Install Zowe CLI
+                  identifier: install_zowe
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "🔧 Installing Node.js and Zowe CLI..."
+                      apt-get update && apt-get install -y curl
+                      curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                      apt-get install -y nodejs
+                      npm install -g @zowe/cli @zowe/endevor-for-zowe-cli
+                      zowe --version
+                      echo "✅ Zowe CLI Installed."
+
+              # STEP 2: Create Endevor profile
+              - step:
+                  name: Configure Zowe Profile
+                  identifier: configure_profile
+                  type: Run
+                  spec:
+                    shell: Bash
+                    envVariables:
+                      ZOS_USER: <+secrets.getValue("zos_user")>
+                      ZOS_PASS: <+secrets.getValue("zos_password")>
+                    command: |
+                      echo "🔐 Creating Zowe Endevor profile..."
+                      zowe profiles create endevor-profile harnessprof \
+                        --host mainframe.example.com \
+                        --port 10443 \
+                        --protocol https \
+                        --user $ZOS_USER \
+                        --password $ZOS_PASS \
+                        --environment DEV \
+                        --system PAYROLL \
+                        --subsystem COBOL
+                      echo "✅ Endevor profile created successfully."
+
+              # STEP 3: Build (Generate) Element
+              - step:
+                  name: Build COBOL Element
+                  identifier: build_element
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "🧱 Generating PAYROLL01 element in Endevor DEV..."
+                      zowe endevor generate element PAYROLL01 \
+                        --environment DEV \
+                        --system PAYROLL \
+                        --subsystem COBOL \
+                        --comment "Build triggered by Harness pipeline"
+                      echo "✅ Build complete."
+
+              # STEP 4: Promote to TEST
+              - step:
+                  name: Promote Element to TEST
+                  identifier: promote_element
+                  type: Run
+                  spec:
+                    shell: Bash
+                    command: |
+                      echo "🚀 Promoting PAYROLL01 to TEST..."
+                      zowe endevor move element PAYROLL01 \
+                        --environment TEST \
+                        --system PAYROLL \
+                        --subsystem COBOL
+                      echo "✅ Promotion complete."
+
+        zowe endevor generate element PAYROLL01 --environment DEV --system PAYROLL --subsystem COBOL
