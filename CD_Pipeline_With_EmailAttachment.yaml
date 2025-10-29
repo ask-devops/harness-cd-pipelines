@@ -24,7 +24,25 @@ pipeline:
                       # Your deploy commands here 
                       # Generate report file to attach
                       echo "Deployment log details..." > deployment_report.txt
-
+              - step:
+                name: Upload artifact to Artifactory
+                identifier: upload_artifact
+                type: ShellScript
+                spec:
+                  shell: Bash
+                  command: |
+                    # Authenticate and push artifact using JFrog CLI or curl
+                    jfrog rt c artifactory-conn --url="https://yourartifactory.com" --user="$ARTIFACTORY_USER" --password="$ARTIFACTORY_PASSWORD"
+                    jfrog rt u "path/to/deployment_report.txt" "your-repo/path/in/artifactory/deployment_report_$(date +%Y%m%d).txt"
+              - step:
+                  name: Send Email Notification with Artifact Link
+                  identifier: send_email
+                  type: Email
+                  spec:
+                    subject: "Deployment Complete - Artifact Available"
+                    recipients:
+                      - "team@example.com"
+                    body: "The deployment report is available here: https://yourartifactory.com/artifactory/your-repo/path/in/artifactory/deployment_report_$(date +%Y%m%d).txt"
               - step:
                   name: Send_Email_With_Attachment
                   identifier: Send_Email_With_Attachment
