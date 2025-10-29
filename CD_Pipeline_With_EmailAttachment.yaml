@@ -1,0 +1,72 @@
+pipeline:
+  name: CD_Pipeline_With_EmailAttachment
+  identifier: CD_Pipeline_With_EmailAttachment
+  projectIdentifier: your_project
+  orgIdentifier: default
+
+  stages:
+    - stage:
+        name: Deploy_and_Notify
+        identifier: Deploy_and_Notify
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Deploy_Service
+                  identifier: Deploy_Service
+                  type: ShellScript
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    command: |
+                      echo "Deploying service..."
+                      # Your deploy commands here 
+                      # Generate report file to attach
+                      echo "Deployment log details..." > deployment_report.txt
+
+              - step:
+                  name: Send_Email_With_Attachment
+                  identifier: Send_Email_With_Attachment
+                  type: ShellScript
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    command: |
+                      #!/bin/bash
+                      # Send email with attachment using sendmail or curl
+                      # Assuming Python is available, simple python smtp script example
+                      python3 << EOF
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+from_addr = 'sender@example.com'
+to_addr = 'recipient@example.com'
+subject = 'Deployment Report'
+body = 'Please find attached the deployment report.'
+
+msg = MIMEMultipart()
+msg['From'] = from_addr
+msg['To'] = to_addr
+msg['Subject'] = subject
+
+msg.attach(MIMEText(body, 'plain'))
+
+filename = 'deployment_report.txt'
+attachment = open(filename, 'rb')
+
+part = MIMEBase('application', 'octet-stream')
+part.set_payload(attachment.read())
+encoders.encode_base64(part)
+part.add_header('Content-Disposition', f'attachment; filename={filename}')
+msg.attach(part)
+
+server = smtplib.SMTP('smtp.yourserver.com', 25)
+server.starttls()
+server.login('smtp_user', 'smtp_password')
+server.sendmail(from_addr, to_addr, msg.as_string())
+server.quit()
+EOF
