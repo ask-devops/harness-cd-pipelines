@@ -1,0 +1,75 @@
+
+**Key Points:**
+- CI in GitHub Actions runs tests/builds
+- Harness pipeline triggered via API after CI success
+- Delegate executes deployment to target environment
+- Status can be optionally reported back to GitHub PR
+
+---
+
+## 2. Prerequisites
+
+- GitHub repository with code and CI workflow
+- Harness NG account with API Key (Execution permission)
+- Harness pipeline already configured for your environment
+- Optional: Docker registry for artifacts
+
+Store secrets in GitHub:
+- `HARNESS_API_KEY`
+- `HARNESS_ACCOUNT_ID`
+
+---
+
+## 3. GitHub Actions Workflow Example
+
+```yaml
+name: CI + Trigger Harness CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build Docker image
+        run: docker build -t myapp:${{ github.sha }} .
+
+  trigger-harness-cd:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Harness Pipeline
+        env:
+          HARNESS_ACCOUNT_ID: ${{ secrets.HARNESS_ACCOUNT_ID }}
+          HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+        run: |
+          PIPELINE_ID="my-pipeline-id"
+          ENV_ID="my-environment-id"
+          ORG_ID="my-org"
+          PROJECT_ID="my-project"
+
+          echo "Triggering Harness pipeline..."
+          RESPONSE=$(curl -s -X POST \
+            "https://app.harness.io/gateway/api/pipeline/api/pipelines/${PIPELINE_ID}/executions?accountIdentifier=${HARNESS_ACCOUNT_ID}&orgIdentifier=${ORG_ID}&projectIdentifier=${PROJECT_ID}" \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $HARNESS_API_KEY" \
+            -d "{ \"executionArgs\": { \"pipelineVariables\": [], \"infraExecutionSummaryId\": \"\" } }")
+
+          echo "Harness API Response: $RESPONSE"
