@@ -1,0 +1,18 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ca-certificates
+
+# Install OPA
+RUN curl -L -o /usr/local/bin/opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64 \
+    && chmod +x /usr/local/bin/opa
+
+# Install Azure CLI
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+COPY build.sh /build.sh
+RUN chmod +x /build.sh
+
+CMD ["/build.sh"]
